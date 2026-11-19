@@ -1,6 +1,34 @@
-# STRATCOM // DEFCON — Consola de Mando Táctico
+<meta property="og:title" content="DEFCON">
+<meta property="og:description" content="Consola de mando táctico en un único HTML: telemetría en vivo, protocolos editables y radio sintetizada.">
+<meta property="og:image" content="https://raw.githubusercontent.com/Hugopvigo/defcon/main/docs/capturas/og.png">
 
-Consola de operaciones **DEFCON** en un único archivo HTML autocontenido: interfaz neumórfica oscura, telemetría SVG en vivo, panel de protocolos editable y audio de radio sintetizado. Todo el CSS y el JavaScript van en línea: **no hay fuentes, imágenes, librerías ni CDNs externos**.
+<p align="center">
+  <img src="docs/capturas/00-cabecera.png" alt="DEFCON — consola de mando táctico" width="100%">
+</p>
+
+<p align="center">
+  <img src="docs/capturas/01-desktop.png" alt="Consola DEFCON: selector de nivel, KPIs, telemetría y protocolos" width="100%">
+</p>
+
+<p align="center">
+  <b>Una consola de mando DEFCON que cabe en un solo archivo.</b><br>
+  Cinco niveles de amenaza, telemetría en vivo, protocolos editables y radio sintetizada. Sin dependencias.
+</p>
+
+<p align="center">
+  <a href="https://hugopvigo.github.io/defcon/"><img alt="demo" src="https://img.shields.io/badge/demo-en%20vivo-ff5a3c?style=flat-square&labelColor=1a1a1e"></a>
+  <img alt="HTML" src="https://img.shields.io/badge/HTML-un%20solo%20archivo-8E8E93?style=flat-square&labelColor=1a1a1e">
+  <img alt="CSS" src="https://img.shields.io/badge/CSS-neumorfismo%20oscuro-8E8E93?style=flat-square&labelColor=1a1a1e">
+  <img alt="JS" src="https://img.shields.io/badge/JS-vanilla,%20sin%20librerías-8E8E93?style=flat-square&labelColor=1a1a1e">
+  <img alt="licencia" src="https://img.shields.io/badge/licencia-CC%20BY--NC--SA%204.0-8E8E93?style=flat-square&labelColor=1a1a1e">
+  <img alt="idioma" src="https://img.shields.io/badge/idioma-Español-8E8E93?style=flat-square&labelColor=1a1a1e">
+</p>
+
+---
+
+## Qué es esto
+
+**DEFCON** es una consola de operaciones autocontenida: interfaz neumórfica oscura, telemetría SVG en vivo, panel de protocolos editable y audio de radio sintetizado. Todo el CSS y el JavaScript van en línea: **no hay fuentes, imágenes, librerías ni CDNs externos**.
 
 > Proyecto de demostración. Los datos son simulados y no existe conexión con ningún sistema real.
 
@@ -47,8 +75,13 @@ Nota: en repositorios privados, GitHub Pages requiere un plan Pro/Team (o superi
 
 ```
 .
-├── index.html   # aplicación completa (HTML + CSS + JS + SVG)
-└── README.md    # este archivo
+├── index.html              # aplicación completa (HTML + CSS + JS + SVG)
+├── docs/capturas/
+│   ├── 00-cabecera.png     # cabecera del repo (GitHub-Design)
+│   ├── 01-desktop.png      # captura real de la consola
+│   └── og.png              # imagen social (1200×630)
+├── LICENSE                 # CC BY-NC-SA 4.0
+└── README.md               # este archivo
 ```
 
 ## Detalles técnicos
@@ -61,3 +94,13 @@ Nota: en repositorios privados, GitHub Pages requiere un plan Pro/Team (o superi
 ## Aviso
 
 Nombres, niveles y directivas son representaciones ficticias con fines de demostración visual. No deben interpretarse como procedimientos militares reales.
+
+## Licencia
+
+[Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International](https://creativecommons.org/licenses/by-nc-sa/4.0/). Puedes compartir y adaptar el proyecto con fines no comerciales, citando a Hugo Perez-Vigo y manteniendo la misma licencia en las obras derivadas.
+
+---
+
+<p align="center">
+  Desarrollado por <a href="https://github.com/Hugopvigo">Hugo Perez-Vigo</a> · <a href="https://hugoperezvigo.es">hugoperezvigo.es</a>
+</p>
