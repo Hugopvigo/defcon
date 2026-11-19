@@ -225,6 +225,8 @@
   }
   .switch[aria-checked="true"] i{transform:translateX(19px);background:var(--accent);box-shadow:0 0 10px var(--accent-glow)}
   .switch.esc[aria-checked="true"] i{background:#ef4444;box-shadow:0 0 10px rgba(239,68,68,.6)}
+  .switch.comms[aria-checked="true"] i{background:#10b981;box-shadow:0 0 10px rgba(16,185,129,.6)}
+  .switch.comms.pending[aria-checked="true"] i{background:#3f6b5c;box-shadow:none}
 
   /* ---- KPI cards ---- */
   .kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:clamp(12px,1.4vw,18px)}
@@ -481,6 +483,10 @@
             <div class="switch-row">
               <span class="switch-label">EDIT PROTOCOL</span>
               <button class="switch" id="editToggle" role="switch" aria-checked="true" aria-label="Edit protocol mode"><i></i></button>
+            </div>
+            <div class="switch-row">
+              <span class="switch-label" id="commsLabel">RADIO COMMS</span>
+              <button class="switch comms" id="commsToggle" role="switch" aria-checked="true" aria-label="Walkie-talkie background audio"><i></i></button>
             </div>
           </div>
         </div>
@@ -941,11 +947,176 @@
     else { setDefcon(previousLevel,true); }
   });
 
+  /* ---------- Synthesized walkie-talkie comms (Web Audio, zero assets) ---------- */
+  const comms = (function(){
+    let ctx=null, master=null, noiseBuf=null, hissGain=null, lfo=null, distCurve=null;
+    let voiceBus=null, timer=null, started=false, wanted=true, sev=5;
+    const toggle=$('commsToggle'), label=$('commsLabel');
+
+    function noiseBuffer(){
+      const len=Math.floor(ctx.sampleRate*2);
+      const buf=ctx.createBuffer(1,len,ctx.sampleRate);
+      const d=buf.getChannelData(0);
+      for(let i=0;i<len;i++) d[i]=Math.random()*2-1;
+      return buf;
+    }
+    function build(){
+      ctx=new (window.AudioContext||window.webkitAudioContext)();
+      noiseBuf=noiseBuffer();
+      distCurve=new Float32Array(256);
+      for(let i=0;i<256;i++){ const x=i*2/255-1; distCurve[i]=Math.tanh(x*2.4); }
+      master=ctx.createGain(); master.gain.value=0.0001; master.connect(ctx.destination);
+      voiceBus=ctx.createGain(); voiceBus.gain.value=0.9; voiceBus.connect(master);
+
+      // A handheld is quiet between transmissions — hiss is only a faint bed.
+      const hiss=ctx.createBufferSource(); hiss.buffer=noiseBuf; hiss.loop=true;
+      const bp=ctx.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=1800; bp.Q.value=0.6;
+      hissGain=ctx.createGain(); hissGain.gain.value=0.022;
+      hiss.connect(bp).connect(hissGain).connect(master); hiss.start();
+
+      const rumble=ctx.createBufferSource(); rumble.buffer=noiseBuf; rumble.loop=true;
+      const lp=ctx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=180;
+      const rg=ctx.createGain(); rg.gain.value=0.018;
+      rumble.connect(lp).connect(rg).connect(master); rumble.start();
+
+      lfo=ctx.createOscillator(); lfo.frequency.value=0.3;
+      const lg=ctx.createGain(); lg.gain.value=0.012;
+      lfo.connect(lg).connect(hissGain.gain); lfo.start();
+    }
+    function pttClick(t){
+      const o=ctx.createOscillator(), g=ctx.createGain();
+      o.type='square';
+      o.frequency.setValueAtTime(1500,t);
+      o.frequency.exponentialRampToValueAtTime(300,t+0.03);
+      g.gain.setValueAtTime(0.12,t);
+      g.gain.exponentialRampToValueAtTime(0.0001,t+0.04);
+      o.connect(g).connect(voiceBus); o.start(t); o.stop(t+0.05);
+    }
+    function squelchTail(t){
+      const s=ctx.createBufferSource(); s.buffer=noiseBuf;
+      const f=ctx.createBiquadFilter(); f.type='bandpass'; f.frequency.value=2600; f.Q.value=0.7;
+      const g=ctx.createGain();
+      g.gain.setValueAtTime(0.0001,t);
+      g.gain.exponentialRampToValueAtTime(0.28,t+0.012);
+      g.gain.exponentialRampToValueAtTime(0.0001,t+0.22);
+      s.connect(f).connect(g).connect(voiceBus); s.start(t); s.stop(t+0.24);
+      // Short roger beep.
+      const o=ctx.createOscillator(), og=ctx.createGain();
+      o.type='sine'; o.frequency.setValueAtTime(1050,t+0.03);
+      og.gain.setValueAtTime(0.0001,t+0.02);
+      og.gain.linearRampToValueAtTime(0.045,t+0.045);
+      og.gain.exponentialRampToValueAtTime(0.0001,t+0.18);
+      o.connect(og).connect(voiceBus); o.start(t+0.02); o.stop(t+0.2);
+    }
+    function transmit(){
+      if(!started||!ctx||ctx.state!=='running') return;
+      const t=ctx.currentTime+0.02, dur=1.1+Math.random()*2.1, end=t+dur;
+      pttClick(t);
+
+      // Glottal sawtooth + breath noise, shaped by three vowel formants:
+      // unmistakably speech-like, but never intelligible.
+      const src=ctx.createOscillator(); src.type='sawtooth'; src.frequency.value=130;
+      const breath=ctx.createBufferSource(); breath.buffer=noiseBuf; breath.loop=true;
+      const bg=ctx.createGain(); bg.gain.value=0.04; breath.connect(bg);
+
+      const f1=ctx.createBiquadFilter(), f2=ctx.createBiquadFilter(), f3=ctx.createBiquadFilter();
+      f1.type=f2.type=f3.type='bandpass';
+      f1.Q.value=6; f2.Q.value=8; f3.Q.value=10;
+      const mix=ctx.createGain(); mix.gain.value=0.0001;
+      [[f1,1],[f2,0.65],[f3,0.22]].forEach(function(pair){
+        const g=ctx.createGain(); g.gain.value=pair[1]; pair[0].connect(g).connect(mix);
+      });
+      src.connect(f1); src.connect(f2); src.connect(f3);
+      bg.connect(f2); bg.connect(f3);
+
+      // Cheap handheld speaker: telephone band plus soft saturation.
+      const hp=ctx.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=300;
+      const lp=ctx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=3000;
+      const shaper=ctx.createWaveShaper(); shaper.curve=distCurve; shaper.oversample='2x';
+      const out=ctx.createGain(); out.gain.value=0.6;
+      mix.connect(hp).connect(lp).connect(shaper).connect(out).connect(voiceBus);
+
+      const F1=[350,520,720,440,660], F2=[900,1250,2300,1650,1050];
+      let p=t+0.07;
+      while(p<end-0.12){
+        const syl=0.09+Math.random()*0.17;
+        const pitch=100+Math.random()*85;
+        src.frequency.setValueAtTime(pitch,p);
+        src.frequency.linearRampToValueAtTime(pitch*(0.86+Math.random()*0.28),p+syl);
+        const v=Math.floor(Math.random()*F1.length);
+        f1.frequency.setValueAtTime(F1[v],p);
+        f2.frequency.setValueAtTime(F2[v],p);
+        f3.frequency.setValueAtTime(2350+Math.random()*400,p);
+        const peak=0.4+Math.random()*0.4;
+        mix.gain.setValueAtTime(0.0001,p);
+        mix.gain.linearRampToValueAtTime(peak,p+0.035);
+        mix.gain.setValueAtTime(peak*0.8,p+syl*0.65);
+        mix.gain.exponentialRampToValueAtTime(0.0001,p+syl);
+        if(Math.random()<0.45){
+          bg.gain.setValueAtTime(0.22,p);
+          bg.gain.exponentialRampToValueAtTime(0.04,p+0.07);
+        }
+        p+=syl+0.035+Math.random()*0.10;
+      }
+      src.start(t); src.stop(end+0.05);
+      breath.start(t); breath.stop(end+0.05);
+      squelchTail(end+0.02);
+    }
+    function schedule(firstDelay){
+      clearTimeout(timer);
+      if(!started) return;
+      const gap=([5,4.2,3.2,2.3,1.6][6-sev]||5)*1000;
+      timer=setTimeout(()=>{ transmit(); schedule(); },firstDelay!=null?firstDelay:gap+Math.random()*gap*0.5);
+    }
+    function applySeverity(){
+      if(!ctx) return;
+      hissGain.gain.setTargetAtTime(0.018+(6-sev)*0.009,ctx.currentTime,0.6);
+      lfo.frequency.setTargetAtTime(0.3+(6-sev)*0.12,ctx.currentTime,0.6);
+    }
+    function start(){
+      if(!wanted) return;
+      if(!ctx){
+        try{ build(); }
+        catch(e){ wanted=false; toggle.setAttribute('aria-checked','false'); label.textContent='AUDIO UNAVAILABLE'; return; }
+      }
+      started=true;
+      if(ctx.state==='suspended') ctx.resume();
+      master.gain.setTargetAtTime(0.3,ctx.currentTime,0.35);
+      applySeverity(); schedule(600);
+      toggle.classList.remove('pending');
+      label.textContent='RADIO LIVE';
+    }
+    function stop(){
+      wanted=false; started=false; clearTimeout(timer);
+      if(ctx) master.gain.setTargetAtTime(0.0001,ctx.currentTime,0.18);
+      toggle.classList.remove('pending');
+      label.textContent='RADIO MUTED';
+    }
+    toggle.addEventListener('click',function(){
+      if(wanted){ stop(); this.setAttribute('aria-checked','false'); }
+      else { wanted=true; this.setAttribute('aria-checked','true'); start(); }
+    });
+    // Browsers block autoplay: arm on first gesture, only if comms was left on.
+    function arm(){
+      if(started||!wanted) return;
+      start();
+      document.removeEventListener('pointerdown',arm);
+      document.removeEventListener('keydown',arm);
+    }
+    document.addEventListener('pointerdown',arm);
+    document.addEventListener('keydown',arm);
+    toggle.classList.add('pending');
+    label.textContent='RADIO ARMED';
+
+    return { setSeverity:function(l){ sev=l; applySeverity(); schedule(); } };
+  })();
+
   /* ---------- Master state change ---------- */
   function setDefcon(lvl,userInitiated){
     current=lvl;
     const d=LEVELS[lvl];
     applyAccent(d.hex);
+    comms.setSeverity(lvl);
     volatility=d.vol;
     $('volReadout').textContent=d.volLabel;
 
