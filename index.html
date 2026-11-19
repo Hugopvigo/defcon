@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>STRATCOM // DEFCON — Tactical Command</title>
+<style>
+  :root{
+    --surface:#161922;
+    --rim:#1f2431;
+    --shadow:#0d0f14;
+    --ink:#e2e8f0;
+    --muted:#64748b;
+    --accent:#3b82f6;
+    --accent-soft:rgba(59,130,246,.28);
+    --accent-faint:rgba(59,130,246,.10);
+    --accent-glow:rgba(59,130,246,.45);
+    --sigint:#67e8f9;
+    --sea:#22d3ee;
+    --air:#a78bfa;
+    --sh-raised:-7px -7px 14px var(--rim), 7px 7px 14px var(--shadow);
+    --sh-inset:inset 7px 7px 14px var(--rim), inset -7px -7px 14px var(--shadow);
+    --sh-raised-sm:-4px -4px 9px var(--rim), 4px 4px 9px var(--shadow);
+    --sh-inset-sm:inset 4px 4px 9px var(--rim), inset -4px -4px 9px var(--shadow);
+    --mono:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,"Courier New",monospace;
+    --sans:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  }
+
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;min-height:100%}
+  body{
+    background:var(--surface);
+    color:var(--ink);
+    font-family:var(--sans);
+    font-size:14px;
+    line-height:1.45;
+    -webkit-font-smoothing:antialiased;
+    padding:clamp(14px,3vw,38px);
+    min-height:100vh;
+    display:flex;
+    align-items:flex-start;
+    justify-content:center;
+  }
+  ::selection{background:var(--accent-soft);color:#fff}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:6px}
+  input,button,textarea{font:inherit;color:inherit}
+  [contenteditable]{caret-color:var(--accent)}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-track{background:var(--surface)}
+  ::-webkit-scrollbar-thumb{background:var(--rim);border-radius:10px;border:2px solid var(--surface)}
+  ::-webkit-scrollbar-thumb:hover{background:#2b3242}
+
+  .shell{
+    width:min(1480px,100%);
+    background:var(--surface);
+    border-radius:24px;
+    box-shadow:-14px -14px 32px #1c2230, 14px 14px 32px #0b0d12;
+    padding:clamp(16px,2.2vw,28px);
+    display:grid;
+    grid-template-columns:260px minmax(0,1fr);
+    gap:clamp(18px,2vw,28px);
+  }
+
+  /* ============ LEFT TACTICAL RAIL ============ */
+  .rail{
+    display:flex;
+    flex-direction:column;
+    gap:22px;
+    min-width:0;
+  }
+  .brand{
+    display:flex;
+    align-items:center;
+    gap:13px;
+    padding:6px 4px 2px;
+  }
+  .brand-emblem{
+    width:52px;height:52px;flex:0 0 52px;
+    display:grid;place-items:center;
+    border-radius:15px;
+    background:var(--surface);
+    box-shadow:var(--sh-raised);
+    color:var(--accent);
+    transition:color .7s ease;
+  }
+  .brand-emblem svg{width:34px;height:34px}
+  .brand-title{font-size:15px;font-weight:800;letter-spacing:.14em;line-height:1.15}
+  .brand-sub{font-size:10px;letter-spacing:.26em;color:var(--muted);margin-top:4px;font-weight:600}
+
+  .rail-label{
+    font-size:10px;letter-spacing:.24em;color:var(--muted);
+    font-weight:700;text-transform:uppercase;margin:0 0 11px 4px;
+    display:flex;align-items:center;gap:8px;
+  }
+  .rail-label::after{content:"";height:1px;flex:1;background:linear-gradient(90deg,var(--rim),transparent)}
+
+  .defcon-list{display:flex;flex-direction:column;gap:12px}
+  .defcon-btn{
+    position:relative;
+    width:100%;
+    border:0;
+    cursor:pointer;
+    background:var(--surface);
+    border-radius:14px;
+    box-shadow:var(--sh-raised);
+    padding:13px 15px;
+    display:flex;
+    align-items:center;
+    gap:12px;
+    text-align:left;
+    color:var(--muted);
+    transition:box-shadow .45s ease,color .45s ease,transform .12s ease;
+  }
+  .defcon-btn:hover{color:var(--ink)}
+  .defcon-btn:active{transform:translateY(1px)}
+  .defcon-num{
+    font-family:var(--mono);
+    font-size:22px;font-weight:700;line-height:1;
+    width:26px;text-align:center;
+    transition:color .45s ease,text-shadow .45s ease;
+  }
+  .defcon-meta{display:flex;flex-direction:column;gap:2px;min-width:0}
+  .defcon-name{font-size:11px;font-weight:800;letter-spacing:.13em;white-space:nowrap}
+  .defcon-desc{font-size:9.5px;letter-spacing:.08em;color:var(--muted);white-space:nowrap}
+  .defcon-led{
+    margin-left:auto;width:9px;height:9px;border-radius:50%;
+    background:#252b38;box-shadow:inset 0 0 3px #05070b;
+    flex:0 0 9px;transition:background .45s ease,box-shadow .45s ease;
+  }
+  .defcon-btn.active{box-shadow:var(--sh-inset)}
+  .defcon-btn.active .defcon-num{text-shadow:0 0 16px currentColor}
+  .defcon-btn.active .defcon-led{
+    background:var(--btn-accent);
+    box-shadow:0 0 12px 2px var(--btn-glow);
+  }
+  .defcon-btn.active .defcon-name{color:var(--ink)}
+
+  .clearance{
+    margin-top:auto;
+    border-radius:16px;
+    background:var(--surface);
+    box-shadow:var(--sh-inset);
+    padding:16px 16px 14px;
+  }
+  .clearance-top{display:flex;align-items:center;gap:10px}
+  .clearance-avatar{
+    width:38px;height:38px;flex:0 0 38px;border-radius:11px;
+    box-shadow:var(--sh-raised-sm);
+    display:grid;place-items:center;color:var(--accent);
+    transition:color .7s ease;
+  }
+  .clearance-avatar svg{width:21px;height:21px}
+  .clearance-name{font-size:12px;font-weight:800;letter-spacing:.06em}
+  .clearance-role{font-size:9.5px;letter-spacing:.14em;color:var(--muted);margin-top:2px}
+  .clearance-code{
+    margin-top:13px;font-family:var(--mono);font-size:10px;color:var(--muted);
+    display:flex;justify-content:space-between;letter-spacing:.05em;
+  }
+  .clearance-code b{color:var(--accent);font-weight:600;transition:color .7s ease}
+  .clearance-bar{height:4px;border-radius:4px;background:#0d0f14;margin-top:9px;overflow:hidden;box-shadow:inset 0 1px 2px #05070b}
+  .clearance-bar i{display:block;height:100%;width:86%;border-radius:4px;background:linear-gradient(90deg,var(--accent-faint),var(--accent));transition:background .7s ease}
+
+  /* ============ MAIN OPERATIONS COLUMN ============ */
+  .main{min-width:0;display:flex;flex-direction:column;gap:clamp(16px,1.8vw,22px)}
+
+  .banner{
+    position:relative;
+    border-radius:18px;
+    background:var(--surface);
+    box-shadow:var(--sh-raised);
+    padding:clamp(16px,2vw,24px) clamp(18px,2.2vw,28px);
+    overflow:hidden;
+    transition:box-shadow .6s ease;
+  }
+  .banner::before{
+    content:"";position:absolute;left:0;top:0;bottom:0;width:4px;
+    background:var(--accent);box-shadow:0 0 22px 2px var(--accent-glow);
+    transition:background .7s ease,box-shadow .7s ease;
+  }
+  .banner.alert{animation:alertPulse 2.1s ease-in-out infinite}
+  @keyframes alertPulse{
+    0%,100%{box-shadow:var(--sh-raised)}
+    50%{box-shadow:var(--sh-raised),0 0 0 1px rgba(239,68,68,.35),0 0 34px -6px rgba(239,68,68,.45)}
+  }
+  .banner-grid{
+    display:flex;align-items:center;justify-content:space-between;
+    gap:20px;flex-wrap:wrap;
+  }
+  .banner-left{display:flex;align-items:center;gap:clamp(16px,2vw,26px);min-width:0}
+  .level-badge{
+    flex:0 0 auto;width:78px;height:78px;border-radius:20px;
+    background:var(--surface);box-shadow:var(--sh-inset);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+  }
+  .level-badge span{font-size:9px;letter-spacing:.18em;color:var(--muted)}
+  .level-badge b{
+    font-family:var(--mono);font-size:38px;line-height:1;font-weight:700;
+    color:var(--accent);text-shadow:0 0 18px var(--accent-glow);
+    transition:color .7s ease,text-shadow .7s ease;
+  }
+  .posture-kicker{font-size:10px;letter-spacing:.28em;color:var(--muted);font-weight:700}
+  .posture-title{
+    font-size:clamp(22px,3vw,34px);font-weight:800;letter-spacing:-.02em;
+    line-height:1.05;margin:5px 0 6px;
+  }
+  .posture-sub{font-size:11px;color:var(--muted);letter-spacing:.05em}
+  .posture-sub b{color:var(--accent);font-weight:700;transition:color .7s ease}
+
+  .banner-right{display:flex;align-items:center;gap:16px;flex-wrap:wrap;justify-content:flex-end}
+  .clock{text-align:right}
+  .clock-time{font-family:var(--mono);font-size:clamp(18px,2.4vw,26px);font-weight:700;letter-spacing:.04em;font-variant-numeric:tabular-nums}
+  .clock-date{font-family:var(--mono);font-size:9.5px;color:var(--muted);letter-spacing:.14em;margin-top:3px}
+  .banner-controls{display:flex;flex-direction:column;gap:9px}
+  .switch-row{display:flex;align-items:center;gap:9px}
+  .switch-label{font-size:9px;letter-spacing:.14em;color:var(--muted);font-weight:700;white-space:nowrap}
+  .switch{
+    position:relative;width:42px;height:23px;border:0;border-radius:20px;
+    background:var(--surface);box-shadow:var(--sh-inset-sm);cursor:pointer;padding:0;
+    flex:0 0 42px;transition:box-shadow .3s ease;
+  }
+  .switch i{
+    position:absolute;top:3px;left:3px;width:17px;height:17px;border-radius:50%;
+    background:#394154;box-shadow:1px 1px 3px #05070b;
+    transition:transform .28s cubic-bezier(.2,.9,.25,1),background .28s ease,box-shadow .28s ease;
+  }
+  .switch[aria-checked="true"] i{transform:translateX(19px);background:var(--accent);box-shadow:0 0 10px var(--accent-glow)}
+  .switch.esc[aria-checked="true"] i{background:#ef4444;box-shadow:0 0 10px rgba(239,68,68,.6)}
+
+  /* ---- KPI cards ---- */
+  .kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:clamp(12px,1.4vw,18px)}
+  .kpi{
+    border-radius:16px;background:var(--surface);box-shadow:var(--sh-raised);
+    padding:16px 16px 15px;min-width:0;
+  }
+  .kpi-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+  .kpi-label{font-size:9.5px;letter-spacing:.13em;color:var(--muted);font-weight:700;line-height:1.4;text-transform:uppercase}
+  .kpi-chip{
+    width:34px;height:34px;flex:0 0 34px;border-radius:10px;
+    background:var(--surface);box-shadow:var(--sh-inset-sm);
+    display:grid;place-items:center;color:var(--accent);
+    transition:color .7s ease;
+  }
+  .kpi-chip svg{width:18px;height:18px}
+  .kpi-value{
+    font-family:var(--mono);font-size:clamp(24px,2.7vw,33px);font-weight:700;
+    letter-spacing:-.02em;font-variant-numeric:tabular-nums;
+    margin:12px 0 8px;line-height:1;color:var(--ink);
+  }
+  .kpi-value .unit{font-size:.5em;color:var(--muted);font-weight:600;margin-left:3px;letter-spacing:0}
+  .kpi-delta{
+    display:inline-flex;align-items:center;gap:6px;
+    font-size:9px;letter-spacing:.08em;font-weight:700;color:var(--accent);
+    background:var(--accent-faint);padding:5px 9px;border-radius:6px;
+    transition:color .7s ease,background .7s ease;
+  }
+  .kpi-delta .dot{width:5px;height:5px;border-radius:50%;background:currentColor;box-shadow:0 0 7px currentColor}
+
+  /* ---- visualization row ---- */
+  .viz-row{display:grid;grid-template-columns:1.55fr 1fr;gap:clamp(12px,1.4vw,18px)}
+  .panel{
+    border-radius:18px;background:var(--surface);box-shadow:var(--sh-raised);
+    padding:clamp(16px,1.8vw,22px);min-width:0;
+  }
+  .panel-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px}
+  .panel-title{font-size:11px;font-weight:800;letter-spacing:.16em;text-transform:uppercase}
+  .panel-sub{font-size:9.5px;color:var(--muted);letter-spacing:.08em;margin-top:3px}
+  .live-tag{
+    display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);
+    font-size:9px;letter-spacing:.12em;color:var(--muted);
+    padding:5px 9px;border-radius:7px;background:var(--surface);box-shadow:var(--sh-inset-sm);
+  }
+  .live-tag .pulse{width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px var(--accent-glow);transition:background .7s ease,box-shadow .7s ease}
+  .live-tag.hold .pulse{background:var(--muted);box-shadow:none;animation:none}
+  .live-tag:not(.hold) .pulse{animation:blip 2s ease-in-out infinite}
+  @keyframes blip{0%,100%{opacity:1}50%{opacity:.35}}
+
+  .viz-row > .panel:first-child{display:flex;flex-direction:column}
+  .chart-well{border-radius:14px;background:var(--surface);box-shadow:var(--sh-inset);padding:8px 6px 2px;flex:1;display:flex;min-height:180px}
+  .chart-svg{display:block;width:100%;height:100%;min-height:180px}
+  .chart-legend{display:flex;gap:18px;flex-wrap:wrap;margin-top:12px;padding-left:2px}
+  .legend-item{display:flex;align-items:center;gap:7px;font-size:9.5px;letter-spacing:.09em;color:var(--muted);font-weight:600}
+  .legend-swatch{width:14px;height:3px;border-radius:3px;background:var(--accent);box-shadow:0 0 7px var(--accent-glow);transition:background .7s ease,box-shadow .7s ease}
+  .legend-swatch.sig{background:var(--sigint);box-shadow:0 0 7px rgba(103,232,249,.5)}
+
+  .donut-wrap{display:flex;flex-direction:column;align-items:center}
+  .donut-svg{width:min(210px,80%);height:auto;display:block}
+  .donut-center-val{font-family:var(--mono);font-size:30px;font-weight:700;fill:var(--ink)}
+  .donut-center-lbl{font-family:var(--sans);font-size:8px;font-weight:700;letter-spacing:.16em;fill:var(--muted)}
+  .donut-legend{width:100%;display:flex;flex-direction:column;gap:9px;margin-top:6px}
+  .donut-leg{display:flex;align-items:center;gap:9px;font-size:10px;letter-spacing:.06em}
+  .donut-leg .bar{width:9px;height:9px;border-radius:3px;flex:0 0 9px}
+  .donut-leg .nm{color:var(--muted);font-weight:600}
+  .donut-leg .pc{margin-left:auto;font-family:var(--mono);font-weight:700;font-variant-numeric:tabular-nums}
+
+  /* ---- protocols ---- */
+  .protocols{border-radius:18px;background:var(--surface);box-shadow:var(--sh-raised);padding:clamp(16px,2vw,24px)}
+  .proto-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:16px}
+  .proto-list{display:flex;flex-direction:column;gap:9px}
+  .proto-item{
+    display:flex;align-items:flex-start;gap:13px;
+    border-radius:12px;background:var(--surface);box-shadow:var(--sh-raised-sm);
+    padding:12px 14px;
+  }
+  .proto-item.done{box-shadow:var(--sh-inset-sm)}
+  .proto-item.done .proto-text{color:var(--muted);text-decoration:line-through;text-decoration-color:var(--muted);opacity:.65}
+  .proto-check{
+    appearance:none;-webkit-appearance:none;
+    width:20px;height:20px;flex:0 0 20px;border-radius:6px;margin:1px 0 0;
+    background:var(--surface);box-shadow:var(--sh-inset-sm);cursor:pointer;
+    position:relative;transition:background .3s ease;
+  }
+  .proto-check:checked{background:var(--accent);box-shadow:0 0 12px var(--accent-glow);transition:background .7s ease,box-shadow .7s ease}
+  .proto-check:checked::after{
+    content:"";position:absolute;left:6px;top:2px;width:6px;height:11px;
+    border:solid #0b0d12;border-width:0 2px 2px 0;transform:rotate(45deg);
+  }
+  .proto-text{
+    flex:1;min-width:0;font-size:12.5px;line-height:1.5;outline:none;
+    border-radius:5px;padding:1px 4px;margin:-1px -4px;
+    transition:color .3s ease;
+  }
+  .proto-text:focus{background:var(--accent-faint);box-shadow:inset 0 0 0 1px var(--accent-soft)}
+  .protocols.locked .proto-text{cursor:default}
+  .proto-del{
+    border:0;background:none;color:var(--muted);cursor:pointer;
+    font-size:16px;line-height:1;padding:2px 4px;border-radius:5px;opacity:0;
+    transition:opacity .2s ease,color .2s ease;
+  }
+  .proto-item:hover .proto-del{opacity:1}
+  .proto-del:hover{color:#ef4444}
+  .protocols.locked .proto-del{display:none}
+  .proto-toolbar{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;align-items:center}
+  .proto-input{
+    flex:1;min-width:180px;border:0;border-radius:10px;background:var(--surface);
+    box-shadow:var(--sh-inset-sm);padding:11px 14px;font-size:12px;outline:none;
+  }
+  .proto-input::placeholder{color:#4b5768}
+  .proto-input:focus{box-shadow:var(--sh-inset-sm),inset 0 0 0 1px var(--accent-soft)}
+  .tool-btn{
+    border:0;cursor:pointer;border-radius:10px;background:var(--surface);
+    box-shadow:var(--sh-raised-sm);padding:10px 15px;font-size:10px;font-weight:800;
+    letter-spacing:.11em;text-transform:uppercase;color:var(--muted);
+    transition:color .25s ease,box-shadow .2s ease,transform .12s ease;
+  }
+  .tool-btn:hover{color:var(--ink)}
+  .tool-btn:active{box-shadow:var(--sh-inset-sm);transform:translateY(1px)}
+  .tool-btn.primary{color:var(--accent)}
+  .protocols.locked .proto-toolbar{display:none}
+  .proto-empty{font-size:12px;color:var(--muted);padding:14px;text-align:center;font-style:italic}
+
+  .footnote{
+    text-align:center;font-family:var(--mono);font-size:9px;color:#6b7789;
+    letter-spacing:.18em;margin-top:2px;
+  }
+
+  /* ============ RESPONSIVE ============ */
+  @media (max-width:1180px){
+    .viz-row{grid-template-columns:1.4fr 1fr}
+    .banner-right{gap:12px}
+  }
+  @media (max-width:1000px){
+    .shell{grid-template-columns:1fr}
+    .rail{flex-direction:row;align-items:center;gap:18px;flex-wrap:wrap}
+    .brand{flex:0 0 auto;padding:0}
+    .rail-label{display:none}
+    .defcon-list{flex-direction:row;flex:1;gap:8px;min-width:260px}
+    .defcon-btn{flex:1;padding:10px 8px;justify-content:center;gap:6px;flex-direction:column;text-align:center}
+    .defcon-num{font-size:19px}
+    .defcon-meta{align-items:center}
+    .defcon-name{font-size:9px}
+    .defcon-desc{display:none}
+    .defcon-led{position:absolute;top:7px;right:7px;margin:0;width:6px;height:6px;flex-basis:6px}
+    .clearance{margin:0;flex:0 0 auto;padding:10px 14px;display:flex;align-items:center;gap:12px}
+    .clearance-top{gap:9px}
+    .clearance-code,.clearance-bar{display:none}
+  }
+  @media (max-width:760px){
+    .kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .viz-row{grid-template-columns:1fr}
+    .banner-grid{align-items:flex-start}
+    .banner-right{justify-content:flex-start;width:100%}
+  }
+  @media (max-width:560px){
+    .rail{gap:12px}
+    .clearance{display:none}
+    .brand{flex:1 1 100%}
+    .defcon-list{flex:1 1 100%;min-width:0}
+    .defcon-btn{padding:9px 4px}
+    .defcon-name{font-size:8px;letter-spacing:.04em}
+  }
+  @media (max-width:480px){
+    body{padding:9px}
+    .shell{padding:13px;border-radius:18px;gap:16px}
+    .brand-title{font-size:13px}
+    .brand-emblem{width:44px;height:44px;flex-basis:44px}
+    .banner{padding:16px}
+    .level-badge{width:62px;height:62px;border-radius:16px}
+    .level-badge b{font-size:30px}
+    .posture-title{font-size:21px}
+    .kpi{padding:13px}
+    .kpi-value{font-size:23px}
+    .clock-time{font-size:17px}
+    .proto-item{padding:10px 11px;gap:10px}
+    .proto-text{font-size:12px}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- ============ LEFT TACTICAL RAIL ============ -->
+  <aside class="rail">
+    <div class="brand">
+      <div class="brand-emblem" aria-hidden="true">
+        <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <path d="M20 3.5 34 9v11c0 8.5-6 14-14 16.5C12 34 6 28.5 6 20V9L20 3.5Z" opacity=".55"/>
+          <path d="M20 9.5a10.5 10.5 0 0 1 10.5 10.5"/>
+          <path d="M20 15.5A4.5 4.5 0 0 1 24.5 20"/>
+          <path d="M20 24.5v6"/>
+          <path d="M13.5 26.5 20 20l6.5 6.5"/>
+          <circle cx="20" cy="20" r="1.6" fill="currentColor" stroke="none"/>
+        </svg>
+      </div>
+      <div>
+        <div class="brand-title">STRATCOM <span style="color:var(--muted)">//</span> DEFCON</div>
+        <div class="brand-sub">TACTICAL COMMAND</div>
+      </div>
+    </div>
+
+    <div>
+      <div class="rail-label">Threat Selection</div>
+      <div class="defcon-list" id="defconList" role="group" aria-label="DEFCON threat level selector"></div>
+    </div>
+
+    <div class="clearance">
+      <div class="clearance-top">
+        <div class="clearance-avatar" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2.5 20 6v6c0 5-3.5 8-8 9.5C7.5 20 4 17 4 12V6l8-3.5Z"/>
+            <circle cx="12" cy="10" r="2.6"/>
+            <path d="M7.5 17.5c1-2 2.6-3 4.5-3s3.5 1 4.5 3"/>
+          </svg>
+        </div>
+        <div>
+          <div class="clearance-name">HUGO PEREZ-VIGO</div>
+          <div class="clearance-role">COMMANDER-IN-CHIEF</div>
+        </div>
+      </div>
+      <div class="clearance-code"><span>CLEARANCE</span><b>TOP // SI</b></div>
+      <div class="clearance-bar"><i></i></div>
+    </div>
+  </aside>
+
+  <!-- ============ MAIN OPERATIONS COLUMN ============ -->
+  <main class="main">
+
+    <!-- Header & threat banner -->
+    <section class="banner" id="banner" aria-label="Threat posture banner">
+      <div class="banner-grid">
+        <div class="banner-left">
+          <div class="level-badge"><span>DEFCON</span><b id="levelBadge">5</b></div>
+          <div>
+            <div class="posture-kicker">STRATEGIC READINESS POSTURE</div>
+            <div class="posture-title" id="postureTitle">FADE OUT</div>
+            <div class="posture-sub">FORCE CONDITION <b id="postureCode">DEFCON 5</b> &nbsp;·&nbsp; NATIONAL MILITARY COMMAND</div>
+          </div>
+        </div>
+        <div class="banner-right">
+          <div class="clock">
+            <div class="clock-time" id="clockTime">00:00:00<span style="color:var(--accent)">Z</span></div>
+            <div class="clock-date" id="clockDate">ZULU TIME // DAY 000</div>
+          </div>
+          <div class="banner-controls">
+            <div class="switch-row">
+              <span class="switch-label">RAPID ESCALATE</span>
+              <button class="switch esc" id="escToggle" role="switch" aria-checked="false" aria-label="Rapid escalation to DEFCON 1"><i></i></button>
+            </div>
+            <div class="switch-row">
+              <span class="switch-label">EDIT PROTOCOL</span>
+              <button class="switch" id="editToggle" role="switch" aria-checked="true" aria-label="Edit protocol mode"><i></i></button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- KPI cards -->
+    <section class="kpi-grid" id="kpiGrid" aria-label="Strategic readiness metrics"></section>
+
+    <!-- Visualization row -->
+    <section class="viz-row">
+
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <div class="panel-title">Radar &amp; Telemetry Matrix</div>
+            <div class="panel-sub">ICBM TRAJECTORY SIM / GLOBAL SIGINT INTERCEPT</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span class="live-tag" id="telemetryTag"><span class="pulse"></span><span id="telemetryState">LIVE</span></span>
+            <button class="switch" id="telemetryToggle" role="switch" aria-checked="true" aria-label="Live telemetry toggle" style="width:38px;flex-basis:38px;height:21px"><i style="width:15px;height:15px;top:3px;left:3px"></i></button>
+          </div>
+        </div>
+        <div class="chart-well">
+          <svg class="chart-svg" viewBox="0 0 640 236" preserveAspectRatio="none" role="img" aria-label="Live dual-series telemetry chart">
+            <defs>
+              <linearGradient id="areaPrimary" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="var(--accent)" stop-opacity=".38"/>
+                <stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/>
+              </linearGradient>
+              <linearGradient id="areaSig" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="var(--sigint)" stop-opacity=".20"/>
+                <stop offset="100%" stop-color="var(--sigint)" stop-opacity="0"/>
+              </linearGradient>
+              <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+                <feGaussianBlur stdDeviation="4" result="b"/>
+                <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+              </filter>
+            </defs>
+            <g id="chartGrid"></g>
+            <path id="sigArea" fill="url(#areaSig)"></path>
+            <path id="priArea" fill="url(#areaPrimary)"></path>
+            <path id="sigGlow" fill="none" stroke="var(--sigint)" stroke-width="4" stroke-opacity=".35" filter="url(#glow)"></path>
+            <path id="priGlow" fill="none" stroke="var(--accent)" stroke-width="4.5" stroke-opacity=".45" filter="url(#glow)"></path>
+            <path id="sigLine" fill="none" stroke="var(--sigint)" stroke-width="1.6" stroke-linejoin="round"></path>
+            <path id="priLine" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round"></path>
+            <circle id="priHead" r="3.4" fill="var(--accent)" stroke="var(--surface)" stroke-width="1.5"></circle>
+          </svg>
+        </div>
+        <div class="chart-legend">
+          <div class="legend-item"><span class="legend-swatch"></span> ICBM TRAJ SIM</div>
+          <div class="legend-item"><span class="legend-swatch sig"></span> SIGINT INTERCEPT</div>
+          <div class="legend-item" style="margin-left:auto;color:var(--accent)">VOLATILITY <span id="volReadout">LOW</span></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <div class="panel-title">Force Deployment</div>
+            <div class="panel-sub">STRATEGIC TRIAD / ACTIVE ASSETS</div>
+          </div>
+        </div>
+        <div class="donut-wrap">
+          <svg class="donut-svg" viewBox="0 0 200 200" role="img" aria-label="Strategic triad asset allocation gauge">
+            <g transform="rotate(-90 100 100)" fill="none" stroke-width="11" stroke-linecap="round">
+              <circle cx="100" cy="100" r="78" stroke="#0e1118" stroke-width="11"/>
+              <circle cx="100" cy="100" r="58" stroke="#0e1118" stroke-width="11"/>
+              <circle cx="100" cy="100" r="38" stroke="#0e1118" stroke-width="11"/>
+              <circle id="arcLand" cx="100" cy="100" r="78" stroke="var(--accent)" stroke-dasharray="0 490" style="transition:stroke-dasharray .9s cubic-bezier(.2,.8,.2,1),stroke .7s ease;filter:drop-shadow(0 0 5px var(--accent-glow))"/>
+              <circle id="arcSea" cx="100" cy="100" r="58" stroke="var(--sea)" stroke-dasharray="0 364" style="transition:stroke-dasharray .9s cubic-bezier(.2,.8,.2,1)"/>
+              <circle id="arcAir" cx="100" cy="100" r="38" stroke="var(--air)" stroke-dasharray="0 239" style="transition:stroke-dasharray .9s cubic-bezier(.2,.8,.2,1)"/>
+            </g>
+            <text id="donutVal" class="donut-center-val" x="100" y="99" text-anchor="middle">0%</text>
+            <text class="donut-center-lbl" x="100" y="116" text-anchor="middle">READINESS</text>
+          </svg>
+          <div class="donut-legend">
+            <div class="donut-leg"><span class="bar" style="background:var(--accent)"></span><span class="nm">LAND / ICBM</span><span class="pc" id="pcLand" style="color:var(--accent)">0%</span></div>
+            <div class="donut-leg"><span class="bar" style="background:var(--sea)"></span><span class="nm">SEA / SSBN</span><span class="pc" id="pcSea" style="color:var(--sea)">0%</span></div>
+            <div class="donut-leg"><span class="bar" style="background:var(--air)"></span><span class="nm">AIR / BOMBERS</span><span class="pc" id="pcAir" style="color:var(--air)">0%</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Action protocols -->
+    <section class="protocols" id="protocols" aria-label="Action protocols">
+      <div class="proto-head">
+        <div>
+          <div class="panel-title" style="font-size:13px">Action Protocols <span style="color:var(--accent)" id="protoLevelTag">// DEFCON 5</span></div>
+          <div class="panel-sub" id="protoIntro">Routine peacetime directives and execution checklist.</div>
+        </div>
+        <span class="live-tag" id="protoCount">0 / 0 COMPLETE</span>
+      </div>
+      <div class="proto-list" id="protoList"></div>
+      <div class="proto-toolbar">
+        <input class="proto-input" id="protoInput" type="text" maxlength="160" placeholder="+ Add custom directive / military order…" aria-label="New directive text" />
+        <button class="tool-btn primary" id="addBtn">+ Add Directive</button>
+        <button class="tool-btn" id="resetBtn">Reset Defaults</button>
+      </div>
+    </section>
+
+    <div class="footnote">STRATCOM // DEFCON &nbsp;·&nbsp; SIMULATED OPERATIONS CONSOLE &nbsp;·&nbsp; NO LIVE SYSTEMS</div>
+  </main>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------- Threat data ---------- */
+  const LEVELS = {
+    5:{hex:'#3b82f6',posture:'FADE OUT',    desc:'Normal peacetime watch',       vol:12, volLabel:'LOW',      intro:'Routine peacetime surveillance and baseline readiness.'},
+    4:{hex:'#10b981',posture:'DOUBLE TAKE', desc:'Increased intelligence watch', vol:20, volLabel:'GUARDED',   intro:'Increased vigilance and intelligence collection posture.'},
+    3:{hex:'#eab308',posture:'ROUND HOUSE', desc:'Air bases on 15-min standby',  vol:30, volLabel:'ELEVATED', intro:'Forces on standby; interceptors and alert wings activated.'},
+    2:{hex:'#f97316',posture:'FAST PACE',   desc:'SSBNs to launch stations',     vol:42, volLabel:'HIGH',     intro:'Strategic forces at launch stations; bombers dispersed.'},
+    1:{hex:'#ef4444',posture:'COCKED PISTOL',desc:'Immediate launch readiness',  vol:58, volLabel:'CRITICAL', intro:'Warheads armed; EAM authentication and immediate launch prep.'}
+  };
+
+  const KPI_SETS = {
+    5:[
+      {label:'ICBM Readiness',      value:34.8, dec:1, unit:'%',    delta:'NOMINAL / BASELINE', icon:'icbm'},
+      {label:'SSBN Deployed',        value:6,    dec:0, unit:'/14',  delta:'ROUTINE PATROL',     icon:'ssbn'},
+      {label:'Airborne Alert Wing',  value:2,    dec:0, unit:'SQDN', delta:'STANDARD POSTURE',   icon:'wing'},
+      {label:'Silo Launch Window',   value:260,  dec:0, time:true,  delta:'SCHEDULED CYCLE',    icon:'silo'}
+    ],
+    4:[
+      {label:'ICBM Readiness',      value:52.1, dec:1, unit:'%',    delta:'WATCH STANDING ↑',   icon:'icbm'},
+      {label:'SSBN Deployed',        value:8,    dec:0, unit:'/14',  delta:'PATROL INCREASE ↑',  icon:'ssbn'},
+      {label:'Airborne Alert Wing',  value:4,    dec:0, unit:'SQDN', delta:'RECON SORTIES ↑',    icon:'wing'},
+      {label:'Silo Launch Window',   value:180,  dec:0, time:true,  delta:'WINDOW TIGHTENING ↓',icon:'silo'}
+    ],
+    3:[
+      {label:'ICBM Readiness',      value:71.4, dec:1, unit:'%',    delta:'STANDBY 15 MIN',     icon:'icbm'},
+      {label:'SSBN Deployed',        value:11,   dec:0, unit:'/14',  delta:'ALERT SSBN ↑',       icon:'ssbn'},
+      {label:'Airborne Alert Wing',  value:7,    dec:0, unit:'SQDN', delta:'INTERCEPTORS UP ↑',  icon:'wing'},
+      {label:'Silo Launch Window',   value:95,   dec:0, time:true,  delta:'WINDOW 01:35',       icon:'silo'}
+    ],
+    2:[
+      {label:'ICBM Readiness',      value:88.9, dec:1, unit:'%',    delta:'LAUNCH STATIONS',     icon:'icbm'},
+      {label:'SSBN Deployed',        value:13,   dec:0, unit:'/14',  delta:'BOMBERS DISPERSED',   icon:'ssbn'},
+      {label:'Airborne Alert Wing',  value:10,   dec:0, unit:'SQDN', delta:'PAYLOAD LOADED',      icon:'wing'},
+      {label:'Silo Launch Window',   value:45,   dec:0, time:true,  delta:'WINDOW 00:45',       icon:'silo'}
+    ],
+    1:[
+      {label:'ICBM Readiness',      value:99.2, dec:1, unit:'%',    delta:'WARHEADS ARMED',      icon:'icbm'},
+      {label:'SSBN Deployed',        value:14,   dec:0, unit:'/14',  delta:'EAM AUTH ACTIVE',     icon:'ssbn'},
+      {label:'Airborne Alert Wing',  value:12,   dec:0, unit:'SQDN', delta:'LAUNCH ON WARNING',   icon:'wing'},
+      {label:'Silo Launch Window',   value:15,   dec:0, time:true,  delta:'WINDOW 00:15',       icon:'silo'}
+    ]
+  };
+
+  const TRIAD = {
+    5:[34,42,28], 4:[55,61,48], 3:[74,80,69], 2:[90,94,88], 1:[100,100,98]
+  };
+
+  const PROTOCOL_DEFAULTS = {
+    5:[
+      'Maintain routine peacetime surveillance of strategic warning systems.',
+      'Keep triad readiness at baseline sustainment levels.',
+      'Rotate SSBN patrols on the standard operating cycle.',
+      'Conduct scheduled ICBM maintenance under monitoring only.'
+    ],
+    4:[
+      'Increase intelligence collection and watch-standing rotation.',
+      'Deploy additional airborne reconnaissance assets.',
+      'Review nuclear command-and-control authentication procedures.',
+      'Heighten SIGINT monitoring of adversarial launch activity.'
+    ],
+    3:[
+      'Place strategic air bases on 15-minute standby.',
+      'Scramble interceptors to forward operating bases.',
+      'Suspend routine leave for all strategic force personnel.',
+      'Bring additional SSBNs to heightened alert status.'
+    ],
+    2:[
+      'Deploy ballistic missile submarines to launch stations.',
+      'Disperse bomber wings to secondary airfields.',
+      'Load strategic bombers with nuclear payloads.',
+      'Elevate Emergency Action Message (EAM) authentication precedence.'
+    ],
+    1:[
+      'Arm nuclear warheads across the strategic triad.',
+      'Authenticate all Emergency Action Messages (EAM).',
+      'Prepare immediate ICBM launch sequences.',
+      'Execute final launch-on-warning authorization protocol.'
+    ]
+  };
+
+  /* ---------- Icons ---------- */
+  const ICONS = {
+    icbm:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3"/><path d="M12 1.5v4M12 18.5v4M1.5 12h4M18.5 12h4"/></svg>',
+    ssbn:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 14c3-4 6-4 9 0s6 4 9 0"/><path d="M5 18c2.5-3 5-3 7 0s4.5 3 7 0"/><path d="M12 4v5M9.5 6.5h5"/></svg>',
+    wing:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2 13l9-3 3-6 2 1-1.5 6 7 2-1 2-7-1-3 4-3-1 2-4-7 1Z"/></svg>',
+    silo:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20V9l7-5 7 5v11"/><path d="M9 20v-7h6v7M3 20h18"/><circle cx="12" cy="13" r="1"/></svg>'
+  };
+
+  const $ = (id)=>document.getElementById(id);
+  let current = 5;
+  let previousLevel = 5;
+
+  /* ---------- Accent / color helpers ---------- */
+  function hexToRgb(hex){
+    const h = hex.replace('#','');
+    return [parseInt(h.substring(0,2),16),parseInt(h.substring(2,4),16),parseInt(h.substring(4,6),16)];
+  }
+  function applyAccent(hex){
+    const [r,g,b] = hexToRgb(hex);
+    const root = document.documentElement.style;
+    root.setProperty('--accent',hex);
+    root.setProperty('--accent-soft',`rgba(${r},${g},${b},.28)`);
+    root.setProperty('--accent-faint',`rgba(${r},${g},${b},.10)`);
+    root.setProperty('--accent-glow',`rgba(${r},${g},${b},.45)`);
+  }
+
+  /* ---------- Build DEFCON buttons ---------- */
+  const defconList = $('defconList');
+  for(let lvl=5;lvl>=1;lvl--){
+    const d = LEVELS[lvl];
+    const [r,g,b] = hexToRgb(d.hex);
+    const btn = document.createElement('button');
+    btn.className = 'defcon-btn';
+    btn.dataset.level = lvl;
+    btn.setAttribute('aria-pressed','false');
+    btn.style.setProperty('--btn-accent',d.hex);
+    btn.style.setProperty('--btn-glow',`rgba(${r},${g},${b},.6)`);
+    btn.innerHTML =
+      '<span class="defcon-num" style="color:'+d.hex+'">'+lvl+'</span>'+
+      '<span class="defcon-meta"><span class="defcon-name">'+d.posture+'</span>'+
+      '<span class="defcon-desc">'+d.desc+'</span></span>'+
+      '<span class="defcon-led"></span>';
+    btn.addEventListener('click',()=>setDefcon(lvl,true));
+    defconList.appendChild(btn);
+  }
+
+  /* ---------- Build KPI cards ---------- */
+  const kpiGrid = $('kpiGrid');
+  function fmt(kpi,v){
+    if(kpi.time){
+      const m = Math.floor(v/60), s = Math.round(v)%60;
+      return String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+    }
+    return v.toFixed(kpi.dec);
+  }
+  for(let i=0;i<4;i++){
+    const card = document.createElement('div');
+    card.className='kpi';
+    card.innerHTML =
+      '<div class="kpi-top"><span class="kpi-label"></span><span class="kpi-chip"></span></div>'+
+      '<div class="kpi-value"><span class="num">0</span><span class="unit"></span></div>'+
+      '<span class="kpi-delta"><span class="dot"></span><span class="dtext"></span></span>';
+    kpiGrid.appendChild(card);
+  }
+  function animateValue(el,from,to,kpi,dur){
+    const start = performance.now();
+    const numEl = el.querySelector('.num'), unitEl = el.querySelector('.unit');
+    unitEl.textContent = kpi.time?'':kpi.unit;
+    function step(t){
+      const p = Math.min(1,(t-start)/dur);
+      const e = 1-Math.pow(1-p,3);
+      numEl.textContent = fmt(kpi,from+(to-from)*e);
+      if(p<1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+
+  /* ---------- Zulu clock ---------- */
+  function tickClock(){
+    const now = new Date();
+    const p = n=>String(n).padStart(2,'0');
+    const time = p(now.getUTCHours())+':'+p(now.getUTCMinutes())+':'+p(now.getUTCSeconds());
+    $('clockTime').innerHTML = time+'<span style="color:var(--accent)">Z</span>';
+    const start = Date.UTC(now.getUTCFullYear(),0,0);
+    const day = Math.floor((now-start)/86400000);
+    $('clockDate').textContent = 'ZULU TIME // DAY '+String(day).padStart(3,'0')+' · '+now.getUTCFullYear();
+  }
+  tickClock(); setInterval(tickClock,1000);
+
+  /* ---------- Telemetry chart ---------- */
+  const N = 48, W = 640, H = 236, padL = 34, padR = 10, padT = 12, padB = 24;
+  const xAt = i => padL + i*(W-padL-padR)/(N-1);
+  const yAt = v => padT + (1-v/100)*(H-padT-padB);
+  let volatility = LEVELS[5].vol;
+
+  // static grid
+  (function(){
+    let g='';
+    [0,25,50,75,100].forEach(v=>{
+      const y=yAt(v);
+      g+='<line x1="'+padL+'" y1="'+y+'" x2="'+(W-padR)+'" y2="'+y+'" stroke="#2a3040" stroke-width=".7" stroke-dasharray="3 5"/>';
+      g+='<text x="'+(padL-8)+'" y="'+(y+3)+'" text-anchor="end" fill="#5b6678" font-family="var(--mono)" font-size="9">'+v+'</text>';
+    });
+    ['T-60','T-45','T-30','T-15','NOW'].forEach((lab,i)=>{
+      const x=padL+i*(W-padL-padR)/4;
+      g+='<line x1="'+x+'" y1="'+padT+'" x2="'+x+'" y2="'+(H-padB)+'" stroke="#222838" stroke-width=".6"/>';
+      g+='<text x="'+x+'" y="'+(H-6)+'" text-anchor="middle" fill="#5b6678" font-family="var(--mono)" font-size="8.5">'+lab+'</text>';
+    });
+    $('chartGrid').innerHTML=g;
+  })();
+
+  function walk(center,amp,spike){
+    const out=[]; let v=center;
+    for(let i=0;i<N;i++){
+      v += (Math.random()-0.5)*amp;
+      v += (center-v)*0.12;
+      if(Math.random()<spike) v += (Math.random()-0.35)*amp*2.4;
+      out.push(Math.max(3,Math.min(99,v)));
+    }
+    return out;
+  }
+  function newTarget(){
+    return {
+      pri: walk(45, volatility*0.55, volatility/260),
+      sig: walk(30, volatility*0.85, volatility/120)
+    };
+  }
+  function toPath(arr){
+    let d='M '+xAt(0).toFixed(1)+' '+yAt(arr[0]).toFixed(1);
+    for(let i=1;i<N;i++) d+=' L '+xAt(i).toFixed(1)+' '+yAt(arr[i]).toFixed(1);
+    return d;
+  }
+  function toArea(arr){
+    return toPath(arr)+' L '+xAt(N-1).toFixed(1)+' '+(H-padB)+' L '+xAt(0).toFixed(1)+' '+(H-padB)+' Z';
+  }
+  let cur = newTarget(), target = newTarget(), raf = null, animStart = 0;
+  const DUR = 650;
+  function draw(pri,sig){
+    const pl=toPath(pri), sl=toPath(sig);
+    $('priLine').setAttribute('d',pl); $('priGlow').setAttribute('d',pl); $('priArea').setAttribute('d',toArea(pri));
+    $('sigLine').setAttribute('d',sl); $('sigGlow').setAttribute('d',sl); $('sigArea').setAttribute('d',toArea(sig));
+    $('priHead').setAttribute('cx',xAt(N-1)); $('priHead').setAttribute('cy',yAt(pri[N-1]));
+  }
+  function animateChart(t){
+    if(!animStart) animStart=t;
+    const p=Math.min(1,(t-animStart)/DUR), e=1-Math.pow(1-p,3);
+    const pri=cur.pri.map((v,i)=>v+(target.pri[i]-v)*e);
+    const sig=cur.sig.map((v,i)=>v+(target.sig[i]-v)*e);
+    draw(pri,sig);
+    if(p<1){ raf=requestAnimationFrame(animateChart); }
+    else { cur=target; raf=null; }
+  }
+  function refreshChart(){
+    target=newTarget(); animStart=0;
+    if(raf) cancelAnimationFrame(raf);
+    raf=requestAnimationFrame(animateChart);
+  }
+  draw(cur.pri,cur.sig);
+  let chartTimer=null, telemetryOn=true;
+  function startChart(){ if(!chartTimer) chartTimer=setInterval(refreshChart,2500); }
+  function stopChart(){ clearInterval(chartTimer); chartTimer=null; if(raf){cancelAnimationFrame(raf);raf=null;} }
+  startChart();
+
+  $('telemetryToggle').addEventListener('click',function(){
+    telemetryOn=!telemetryOn;
+    this.setAttribute('aria-checked',String(telemetryOn));
+    $('telemetryTag').classList.toggle('hold',!telemetryOn);
+    $('telemetryState').textContent=telemetryOn?'LIVE':'HOLD';
+    telemetryOn?startChart():stopChart();
+  });
+
+  /* ---------- Donut ---------- */
+  const RADII=[78,58,38], CIRC=RADII.map(r=>2*Math.PI*r);
+  function setDonut(vals){
+    [0,1,2].forEach(i=>{
+      const pct=Math.max(0,Math.min(100,vals[i]));
+      $(['arcLand','arcSea','arcAir'][i]).setAttribute('stroke-dasharray',(CIRC[i]*pct/100).toFixed(1)+' '+CIRC[i].toFixed(1));
+      ['pcLand','pcSea','pcAir'].forEach((id,j)=>{ if(j===i) $(id).textContent=Math.round(vals[i])+'%'; });
+    });
+    $('donutVal').textContent=Math.round(vals.reduce((a,b)=>a+b,0)/3)+'%';
+  }
+
+  /* ---------- Protocols (localStorage) ---------- */
+  const STORE='stratcom-defcon-protocols-v1';
+  let protoState={};
+  function deepDefault(){
+    const o={}; for(const k in PROTOCOL_DEFAULTS) o[k]=PROTOCOL_DEFAULTS[k].map((t,i)=>({id:'d'+k+'-'+i,text:t,done:false}));
+    return o;
+  }
+  function loadState(){
+    try{
+      const raw=localStorage.getItem(STORE);
+      if(raw){ const s=JSON.parse(raw); for(const k in PROTOCOL_DEFAULTS) if(Array.isArray(s[k])) protoState[k]=s[k]; }
+    }catch(e){}
+    for(const k in PROTOCOL_DEFAULTS) if(!protoState[k]) protoState[k]=PROTOCOL_DEFAULTS[k].map((t,i)=>({id:'d'+k+'-'+i,text:t,done:false}));
+  }
+  function saveState(){ try{ localStorage.setItem(STORE,JSON.stringify(protoState)); }catch(e){} }
+  loadState();
+
+  const protoList=$('protoList');
+  function renderProtocols(lvl){
+    protoList.innerHTML='';
+    const list=protoState[lvl]||[];
+    if(!list.length){ protoList.innerHTML='<div class="proto-empty">No directives on file — add a custom order below.</div>'; }
+    list.forEach(item=>{
+      const row=document.createElement('div');
+      row.className='proto-item'+(item.done?' done':'');
+      row.dataset.id=item.id;
+      row.innerHTML=
+        '<input type="checkbox" class="proto-check" '+(item.done?'checked':'')+' aria-label="Mark directive complete"/>'+
+        '<div class="proto-text" contenteditable="true" role="textbox" aria-label="Directive text" spellcheck="false"></div>'+
+        '<button class="proto-del" title="Remove directive" aria-label="Remove directive">×</button>';
+      row.querySelector('.proto-text').textContent=item.text;
+      protoList.appendChild(row);
+    });
+    updateProtoCount();
+  }
+  function updateProtoCount(){
+    const list=protoState[current]||[];
+    $('protoCount').textContent=list.filter(x=>x.done).length+' / '+list.length+' COMPLETE';
+  }
+  protoList.addEventListener('change',e=>{
+    if(!e.target.classList.contains('proto-check')) return;
+    const id=e.target.closest('.proto-item').dataset.id;
+    const item=(protoState[current]||[]).find(x=>x.id===id);
+    if(item){ item.done=e.target.checked; e.target.closest('.proto-item').classList.toggle('done',item.done); saveState(); updateProtoCount(); }
+  });
+  protoList.addEventListener('input',e=>{
+    if(!e.target.classList.contains('proto-text')) return;
+    const id=e.target.closest('.proto-item').dataset.id;
+    const item=(protoState[current]||[]).find(x=>x.id===id);
+    if(item){ item.text=e.target.textContent; saveState(); }
+  });
+  protoList.addEventListener('click',e=>{
+    if(!e.target.classList.contains('proto-del')) return;
+    const id=e.target.closest('.proto-item').dataset.id;
+    protoState[current]=(protoState[current]||[]).filter(x=>x.id!==id);
+    saveState(); renderProtocols(current);
+  });
+  function addDirective(){
+    const inp=$('protoInput'), text=inp.value.trim();
+    if(!text) return;
+    protoState[current].push({id:'u'+Date.now()+Math.floor(Math.random()*999),text:text,done:false});
+    inp.value=''; saveState(); renderProtocols(current);
+    protoList.lastElementChild && protoList.lastElementChild.querySelector('.proto-text').focus();
+  }
+  $('addBtn').addEventListener('click',addDirective);
+  $('protoInput').addEventListener('keydown',e=>{ if(e.key==='Enter') addDirective(); });
+  $('resetBtn').addEventListener('click',()=>{
+    protoState[current]=PROTOCOL_DEFAULTS[current].map((t,i)=>({id:'d'+current+'-'+i,text:t,done:false}));
+    saveState(); renderProtocols(current);
+  });
+
+  // Edit-mode switch
+  const editToggle=$('editToggle'), protocolsEl=$('protocols');
+  editToggle.addEventListener('click',function(){
+    const on=this.getAttribute('aria-checked')!=='true';
+    this.setAttribute('aria-checked',String(on));
+    protocolsEl.classList.toggle('locked',!on);
+    protoList.querySelectorAll('.proto-text').forEach(el=>el.setAttribute('contenteditable',String(on)));
+  });
+
+  // Rapid escalation switch
+  const escToggle=$('escToggle');
+  escToggle.addEventListener('click',function(){
+    const on=this.getAttribute('aria-checked')!=='true';
+    this.setAttribute('aria-checked',String(on));
+    if(on){ previousLevel=current; setDefcon(1,true); }
+    else { setDefcon(previousLevel,true); }
+  });
+
+  /* ---------- Master state change ---------- */
+  function setDefcon(lvl,userInitiated){
+    current=lvl;
+    const d=LEVELS[lvl];
+    applyAccent(d.hex);
+    volatility=d.vol;
+    $('volReadout').textContent=d.volLabel;
+
+    // buttons
+    defconList.querySelectorAll('.defcon-btn').forEach(b=>{
+      const on=+b.dataset.level===lvl;
+      b.classList.toggle('active',on);
+      b.setAttribute('aria-pressed',String(on));
+    });
+
+    // header
+    $('levelBadge').textContent=lvl;
+    $('postureTitle').textContent=d.posture;
+    $('postureCode').textContent='DEFCON '+lvl;
+    $('banner').classList.toggle('alert',lvl===1);
+
+    // KPIs
+    const set=KPI_SETS[lvl];
+    [...kpiGrid.children].forEach((card,i)=>{
+      const k=set[i];
+      card.querySelector('.kpi-label').textContent=k.label;
+      card.querySelector('.kpi-chip').innerHTML=ICONS[k.icon];
+      card.querySelector('.dtext').textContent=k.delta;
+      const from=parseFloat(card.dataset.val);
+      animateValue(card,isNaN(from)?0:from,k.value,k,820);
+      card.dataset.val=k.value;
+    });
+
+    // donut
+    setDonut(TRIAD[lvl]);
+
+    // chart
+    refreshChart();
+
+    // protocols
+    $('protoLevelTag').textContent='// DEFCON '+lvl;
+    $('protoIntro').textContent=d.intro;
+    renderProtocols(lvl);
+
+    if(userInitiated && lvl!==1 && escToggle.getAttribute('aria-checked')==='true'){
+      escToggle.setAttribute('aria-checked','false');
+    }
+  }
+
+  // init
+  applyAccent(LEVELS[5].hex);
+  setDefcon(5,false);
+})();
+</script>
+</body>
+</html>
